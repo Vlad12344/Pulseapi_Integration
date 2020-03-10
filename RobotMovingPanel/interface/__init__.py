@@ -1,0 +1,1 @@
+from RobotMovingPanel.interface.interfaceLogic import MovingPanel
