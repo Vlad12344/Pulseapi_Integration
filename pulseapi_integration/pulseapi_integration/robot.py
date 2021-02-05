@@ -1,11 +1,10 @@
 import sys
 import time
-import threading
 import numpy as np
 
 from pulseapi import *
 from pulseapi_integration.linalg import *
-from pulseapi_integration.utils import position_2_xyzrpw, list_2_position
+from pulseapi_integration.utils import position_2_xyzrpw, dict_2_position, updateCoordinates
 from pulseapi_integration.decorators import start_thread, standart_position_output
 
 class Singleton(type):
@@ -17,8 +16,7 @@ class Singleton(type):
 
 class NewRobotPulse(RobotPulse, metaclass=Singleton):
 
-    LOGS = False
-    REF_FRAME = np.zeros(6)
+    REF_FRAME: dict = {'position': np.zeros(6)}
 
     def __init__(self, host=None, logger=None):
         super().__init__(host, logger)
@@ -40,8 +38,6 @@ class NewRobotPulse(RobotPulse, metaclass=Singleton):
         point = self.get_position()['point']
         rotation =  self.get_position()['rotation']
 
-        print(point)
-
         linear_axises = {
             'x': 'x',
             'y': 'y',
@@ -58,7 +54,6 @@ class NewRobotPulse(RobotPulse, metaclass=Singleton):
             if axis in linear_axises:
                 xyz_value = point[linear_axises[axis]]
                 point.update({linear_axises[axis]: xyz_value + distance})
-                print({linear_axises[axis]: xyz_value + distance})
             elif axis in rotation_axises:
                 rpw_value = rotation[rotation_axises[axis]]
                 rotation.update({rotation_axises[axis]: rpw_value + math.radians(distance)})
@@ -67,7 +62,7 @@ class NewRobotPulse(RobotPulse, metaclass=Singleton):
 
         XYZ = point.values()
         RPW = rotation.values()
-        print(XYZ)
+
         self.set_position(position(XYZ, RPW), tcp_max_velocity=velocity, motion_type=MT_LINEAR)
         self.await_stop()
 
@@ -126,18 +121,22 @@ class NewRobotPulse(RobotPulse, metaclass=Singleton):
     def set_position(self, target_position, **kwargs):
         from_refFrame_2_baseFrame = self.__from_reference_frame_2_baseframe(target_position)
         # Convert to standart form
-        from_refFrame_2_baseFrame = list_2_position(from_refFrame_2_baseFrame)
+        from_refFrame_2_baseFrame = dict_2_position(from_refFrame_2_baseFrame)
         self._api.set_position(from_refFrame_2_baseFrame, **kwargs)
 
         return from_refFrame_2_baseFrame
 
     def __from_reference_frame_2_baseframe(self, target_position):
-        target_position = position_2_xyzrpw(target_position)
-        return offset(target_position, self.REF_FRAME)
+        position_point = position_2_xyzrpw(target_position)
+        offsetPoint = offset(position_point['position'], self.REF_FRAME['position'])
+        # Update target_position. That's why return target_position
+        updateCoordinates(position_point, offsetPoint)
+
+        return position_point
 
     def run_positions(self, positions, **kwargs):
         positions_relative_ref_frame = [self.__from_reference_frame_2_baseframe(i) for i in positions]
-        positions_relative_ref_frame = [list_2_position(i) for i in positions_relative_ref_frame]
+        positions_relative_ref_frame = [dict_2_position(i) for i in positions_relative_ref_frame]
 
         self._api.run_positions(positions_relative_ref_frame, **kwargs)
 
@@ -150,9 +149,11 @@ class NewRobotPulse(RobotPulse, metaclass=Singleton):
         return position relative base frame.
         """
         initial_position = position_2_xyzrpw(self._api.get_position())
-        get_position_relative_ref_frame = relRef_frame(initial_position, self.REF_FRAME)
+        relativeReferenceFrame = relRef_frame(initial_position['position'], self.REF_FRAME['position'])
+        # Update initial_position. That's why return initial_position
+        updateCoordinates(initial_position, relativeReferenceFrame)
 
-        return get_position_relative_ref_frame
+        return initial_position
 
     @standart_position_output
     def get_position_rel_base(self):
@@ -160,40 +161,17 @@ class NewRobotPulse(RobotPulse, metaclass=Singleton):
 
     def go_home(
         self,
-        speed=None,
-        velocity=None,
-        acceleration=None,
-        tcp_max_velocity=None,
-        motion_type=MT_JOINT
+        speed=10,
+        **kwargs
     ):
         """
         Set robot in home position
         """
         self.set_pose(pose([0, -90, 0, -90, -90, 0]),
                       speed=speed,
-                      velocity=velocity,
-                      acceleration=acceleration,
-                      tcp_max_velocity=tcp_max_velocity,
-                      motion_type=motion_type)
+                      **kwargs)
 
     def untwist(self):
         import requests
         answer = requests.put(f'http://{self.host}/untwisting/finish')
         print(answer)
-
-    def enable_moving_panel(self):
-        from RobotMovingPanel.main import main
-        main(self.host)
-
-    def stop_logs(self):
-        self.LOGS = False
-
-    @start_thread
-    def get_logs(
-        self,
-        period: float = 0.5,
-        ):
-        while self.LOGS == True:
-            motor_logs = self.robot.status_motors()
-            func(motor_logs)
-            time.sleep(period)

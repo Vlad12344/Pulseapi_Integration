@@ -22,31 +22,6 @@ def xyzrpw_2_pose(xyzrpw):
     sc = math.sin(c)
     return np.array([[cb*cc, cc*sa*sb - ca*sc, sa*sc + ca*cc*sb, x],[cb*sc, ca*cc + sa*sb*sc, ca*sb*sc - cc*sa, y],[-sb, cb*sa, ca*cb, z],[0,0,0,1]])
 
-# def pose_2_xyzrpw(H):
-#     """Calculates the equivalent position (M) and Euler angles (deg) as an [x,y,z,r,p,w] array, given a pose.
-#     It returns the values that correspond to the following operation:
-#     transl(x,y,z)*rotz(w)*roty(p)*rotx(r)
-
-#     :param H: pose
-#     :return: [x,y,z,w,p,r] in M and rad
-#     """
-#     x = H[0,3]
-#     y = H[1,3]
-#     z = H[2,3]
-#     if (H[2,0] > (1.0 - 1e-6)):
-#         p = -math.pi/2
-#         r = 0
-#         w = math.atan2(-H[1,2],H[1,1])
-#     elif H[2,0] < -1.0 + 1e-6:
-#         p = math.pi/2
-#         r = 0
-#         w = math.atan2(H[1,2],H[1,1])
-#     else:
-#     p = math.atan2(-H[2,0],math.sqrt(H[0,0]*H[0,0]+H[1,0]*H[1,0]))
-#     w = math.atan2(H[1,0],H[0,0])
-#     r = math.atan2(H[2,1],H[2,2])
-#     return [x, y, z, r, p, w]
-
 def ur_2_pose(xyzwpr):
     """Calculate the pose target given a p[x,y,z,u,v,w] cartesian target with rotation vector.
         This is the same format required by Universal Robot controllers.

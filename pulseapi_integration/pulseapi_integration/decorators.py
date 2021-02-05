@@ -8,19 +8,19 @@ def start_thread(func):
     return wrapped
 
 def standart_position_output(func):
-    """
-    :param target_position: 1x6 list
-    """
+    """"""
     def wrapped(self):
         point = {}
         rotation = {}
-        points_list = [round(item, 5) for item in func(self)]
 
-        for axis, value in zip(['x', 'y', 'z'], points_list[0:3]):
+        for axis, value in zip(['x', 'y', 'z'], func(self)['position'][:3]):
             point.update({axis: value})
-        for rot, value in zip(['roll', 'pitch', 'yaw'], points_list[3:6]):
+        for rot, value in zip(['roll', 'pitch', 'yaw'], func(self)['position'][3:]):
             rotation.update({rot: value})
 
-        ref_frame = {'point': point, 'rotation': rotation}
+        try:
+            ref_frame = {'point': point, 'rotation': rotation, 'timestamp': func(self)['timestamp']}
+        except KeyError:
+            return {'point': point, 'rotation': rotation}
         return ref_frame
     return wrapped
