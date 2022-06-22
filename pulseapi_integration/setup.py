@@ -19,7 +19,7 @@ setup(
     ],
     python_requires='>=3.6',
     install_requires=[
-        'numpy==1.18.1',
+        'numpy==1.22.0',
         'requests==2.22.0',
     ]
 )
